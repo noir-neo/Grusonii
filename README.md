@@ -1,6 +1,6 @@
 # Grusonii
 
-Grusonii, a simple home robot that can greet you.
+Grusonii, a simple home robot that watches over you.
 
 
 ## Getting Started
