@@ -15,12 +15,10 @@ print "grusonii is during startup..."
 
 cascade_path = "/usr/share/opencv/haarcascades/haarcascade_frontalface_alt2.xml"
 
-servo = None
-dcX = 0.0
-dcY = 0.0
-GPIO.setmode(GPIO.BCM)
-GPIO.setup(12, GPIO.OUT)
-GPIO.setup(18, GPIO.OUT)
+servo_gpionum = {'x': 12, 'y': 18}
+servo = {}
+dc = {'x': 6.0, 'y': 7.0}
+
 
 with picamera.PiCamera() as camera:
 
@@ -41,9 +39,7 @@ with picamera.PiCamera() as camera:
     def exit_handler(signal, frame):
         print "Exiting..."
         camera.stop_preview()
-        if servo:
-            servo.stop()
-        lookat(7.5, 7)
+        change_dc({'x': 7.5, 'y': 7})
         GPIO.cleanup()
         print "Bye!"
         sys.exit(0)
@@ -52,44 +48,56 @@ with picamera.PiCamera() as camera:
 
 
     def lookat(angleX, angleY):
-        global dcX, dcY
+        global dc
 
-        if dcY != angleY:
-            dcY = angleY
-            if dcY < 4:
-                dcY = 4
-            if dcY > 10:
-                dcY = 10
+        if dc['y'] == angleY and dc['x'] == angleX:
+            return
 
-            changeDC(18, dcY)
-            lookat(angleX, dcY)
+        if dc['y'] != angleY:
+            dc['y'] = angleY
+            if dc['y'] < 4:
+                dc['y'] = 4
+            if dc['y'] > 10:
+                dc['y'] = 10
 
-        elif dcX != angleX:
-            dcX = angleX
-            if dcX < 4.5:
-                dcX = 4.5
-            if dcX > 7.5:
-                dcX = 7.5
-
-            changeDC(12, dcX)
+        if dc['x'] != angleX:
+            dc['x'] = angleX
+            if dc['x'] < 4.5:
+                dc['x'] = 4.5
+            if dc['x'] > 7.5:
+                dc['x'] = 7.5
 
         reset_image()
+        change_dc(dc)
 
 
     def rotate(angleX, angleY):
-        global dcX, dcY
+        global dc
 
-        lookat(dcX + angleX, dcY + angleY)
+        lookat(dc['x'] + angleX, dc['y'] + angleY)
 
 
-    def changeDC(gpionum, to):
-        servo = GPIO.PWM(gpionum, 50)
-        servo.start(0.0)
-        time.sleep(0.1)
-        servo.ChangeDutyCycle(to)
+    def change_dc(map):
+        start_servo()
+
+        for k, v in map.items():
+            servo[k].ChangeDutyCycle(v)
         time.sleep(0.5)
-        servo.stop()
-        servo = None
+
+        stop_servo()
+
+
+    def start_servo():
+        for k, v in servo_gpionum.items():
+            servo[k] = GPIO.PWM(v, 50)
+            servo[k].start(0.0)
+
+        time.sleep(0.1)
+
+
+    def stop_servo():
+        for k, v in servo.items():
+            v.stop()
 
 
     def get_diff():
@@ -202,7 +210,12 @@ with picamera.PiCamera() as camera:
 
 
     def init():
-        lookat(6, 7)
+
+        GPIO.setmode(GPIO.BCM)
+        for k, v in servo_gpionum.items():
+            GPIO.setup(v, GPIO.OUT)
+
+        change_dc(dc)
         print "Hi!"
 
 
