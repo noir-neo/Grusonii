@@ -239,10 +239,10 @@ with picamera.PiCamera() as camera:
                 sleep_flag_count -= 1
 
         else:
-            if sleep_flag_count < 100:
+            if sleep_flag_count < 20:
                 sleep_flag_count += 1
 
-        return sleep_flag_count > 95
+        return sleep_flag_count > 18
 
 
     def is_bright():
