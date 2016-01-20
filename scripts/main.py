@@ -19,6 +19,9 @@ servo_gpionum = {'x': 12, 'y': 18}
 servo = {}
 dc = {'x': 6.0, 'y': 7.0}
 
+light_gpionum = 4
+sleep_flag_count = 0
+
 
 with picamera.PiCamera() as camera:
 
@@ -29,16 +32,24 @@ with picamera.PiCamera() as camera:
     hist_32 = np.zeros((IMAGE_H, IMAGE_W), np.float32)
 
     camera.resolution = (IMAGE_W, IMAGE_H)
-    camera.start_preview()
-    time.sleep(2)
     stream = io.BytesIO()
 
     has_previous_diff = False
 
+    def start_camera():
+        camera.led = True
+        camera.start_preview()
+        time.sleep(2)
+
+
+    def stop_camera():
+        camera.stop_preview()
+        camera.led = False
+
 
     def exit_handler(signal, frame):
         print "Exiting..."
-        camera.stop_preview()
+        stop_camera()
         change_dc({'x': 7.5, 'y': 7})
         GPIO.cleanup()
         print "Bye!"
@@ -208,12 +219,45 @@ with picamera.PiCamera() as camera:
             # rotate(np.random.rand()*2-1, np.random.rand()*4-2)
             # time.sleep(0.5)
 
+    def check_awake():
+        if should_sleep():
+            change_dc({'x': 7.5, 'y': 7})
+            stop_camera()
+
+            while should_sleep():
+                time.sleep(5)
+
+            start_camera()
+            change_dc({'x': 6, 'y': 7})
+
+
+    def should_sleep():
+        global sleep_flag_count
+
+        if is_bright():
+            if sleep_flag_count > 0:
+                sleep_flag_count -= 1
+
+        else:
+            if sleep_flag_count < 20:
+                sleep_flag_count += 1
+
+        return sleep_flag_count > 18
+
+
+    def is_bright():
+        # dark -> 1, bright -> 0
+        return GPIO.input(4) < 1
+
 
     def init():
+        start_camera()
 
         GPIO.setmode(GPIO.BCM)
         for k, v in servo_gpionum.items():
             GPIO.setup(v, GPIO.OUT)
+
+        GPIO.setup(light_gpionum, GPIO.IN)
 
         change_dc(dc)
         print "Hi!"
@@ -221,6 +265,9 @@ with picamera.PiCamera() as camera:
 
     def main():
         for foo in camera.capture_continuous(stream, "jpeg", use_video_port=True):
+
+            check_awake()
+
             read_image()
             action()
 
