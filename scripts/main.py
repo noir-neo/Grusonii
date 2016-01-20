@@ -37,12 +37,14 @@ with picamera.PiCamera() as camera:
     has_previous_diff = False
 
     def start_camera():
+        camera.led = True
         camera.start_preview()
         time.sleep(2)
 
 
     def stop_camera():
         camera.stop_preview()
+        camera.led = False
 
 
     def exit_handler(signal, frame):
